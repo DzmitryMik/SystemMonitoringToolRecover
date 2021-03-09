@@ -1,10 +1,9 @@
 ﻿using System;
-using Azure.Search.Documents.Indexes;
 using Newtonsoft.Json;
 
-namespace SystemMonitoring.AlertRecoveryTool.Model
+namespace BlobStorageToAzureSearchPush.Model
 {
-    public class ActiveAlertAzureSearchModel
+    public class LogRecordAzureSearchModel
     {
         [JsonProperty("id", Required = Required.Always)]
         public string id { get; set; }
@@ -16,11 +15,11 @@ namespace SystemMonitoring.AlertRecoveryTool.Model
         [JsonProperty("eventCodeId", Required = Required.Always)]
         public int eventCodeId { get; set; }
 
-        [JsonProperty("activeAlertTypeId", Required = Required.Always)]
-        public int activeAlertTypeId { get; set; }
+        [JsonProperty("logRecordTypeId", Required = Required.Always)]
+        public int logRecordTypeId { get; set; }
         
-        [JsonProperty("activeAlertTypeName", Required = Required.Always)]
-        public string activeAlertTypeName { get; set; }
+        [JsonProperty("logRecordTypeName", Required = Required.Always)]
+        public string logRecordTypeName { get; set; }
         
         [JsonProperty("systemTypeName", Required = Required.Always)]
         public string systemTypeName { get; set; }

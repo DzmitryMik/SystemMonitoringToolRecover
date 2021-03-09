@@ -1,6 +1,6 @@
-﻿namespace SystemMonitoring.AlertRecoveryTool
+﻿namespace BlobStorageToAzureSearchPush.Enums
 {
-    internal enum ActiveAlertType
+    internal enum LogRecordType
     {
         All = 0,
         SessionEvent = 1,

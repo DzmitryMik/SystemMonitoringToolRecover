@@ -7,8 +7,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{43CE4395-BC9F-42FB-931B-091937BFCB66}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>SystemMonitoring.AlertRecoveryTool</RootNamespace>
-    <AssemblyName>SystemMonitoring.AlertRecoveryTool</AssemblyName>
+    <RootNamespace>BlobStorageToAzureSearchPush</RootNamespace>
+    <AssemblyName>BlobStorageToAzureSearchPush</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -100,8 +100,9 @@
     <Reference Include="Microsoft.WindowsAzure.Storage, Version=9.3.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>packages\WindowsAzure.Storage.9.3.3\lib\net45\Microsoft.WindowsAzure.Storage.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>packages\Newtonsoft.Json.10.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed">
+      <HintPath>..\packages\Newtonsoft.Json.12.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="Polly, Version=7.0.0.0, Culture=neutral, PublicKeyToken=c8a3ffc3f8f825cc, processorArchitecture=MSIL">
       <HintPath>packages\Polly.7.2.1\lib\net472\Polly.dll</HintPath>
@@ -198,9 +199,9 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Enums\ActiveAlertType.cs" />
-    <Compile Include="Model\ActiveAlertAzureSearchModel.cs" />
-    <Compile Include="Enums\AlertExpirationPolicy.cs" />
+    <Compile Include="Enums\LogRecordType.cs" />
+    <Compile Include="Model\LogRecordAzureSearchModel.cs" />
+    <Compile Include="Enums\LogRecordExpirationPolicy.cs" />
     <Compile Include="Enums\BlobType.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

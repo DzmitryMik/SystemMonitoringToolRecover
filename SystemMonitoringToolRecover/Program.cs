@@ -1,30 +1,21 @@
-﻿using SystemMonitoring.AlertRecoveryTool.Model;
+﻿using System.Runtime.Remoting.Contexts;
+using BlobStorageToAzureSearchPush.Enums;
+using BlobStorageToAzureSearchPush.Model;
 
-namespace SystemMonitoring.AlertRecoveryTool
+namespace BlobStorageToAzureSearchPush
 {
     using System;
-    using Polly.Timeout;
     using System.Collections.Generic;
     using System.Configuration;
     using System.Linq;
-    using System.Reactive.Linq;
     using System.Threading;
     using System.Threading.Tasks;
-    using System.Threading.Tasks.Dataflow;
-    using Azure;
-    using Azure.Search.Documents.Indexes;
-    using Azure.Search.Documents.Models;
-
-    using Microsoft.WindowsAzure.Storage;
-    using Microsoft.WindowsAzure.Storage.Blob;
-
     using Newtonsoft.Json;
-    using Polly;
 
     public enum StatisticType
     {
-        BufferedAlertsByNow,
-        PushedAlertsToAzureByNow,
+        BufferedLogRecordsByNow,
+        PushedLogRecordsToAzureByNow,
         BlobsDownloadedByNow
     }
 
@@ -38,16 +29,16 @@ namespace SystemMonitoring.AlertRecoveryTool
         private static List<string> _blobPathsSource;
 
         private static BlobType _blobType;
-        private static ActiveAlertType _alertType;
-        private static string _alertName;
-        private static AlertExpirationPolicy _alertExpirationPolicy;
-        private static long _alertExpirationShiftingInDays;
+        private static LogRecordType _logRecordType;
+        private static string _logRecordName;
+        private static LogRecordExpirationPolicy _logRecordExpirationPolicy;
+        private static long _logRecordExpirationShiftingInDays;
 
         private static string _targetSearchServiceName;
         private static string _targetAdminKey;
         private static string _targetIndexName;
         private static long _timeOutInSeconds;
-        private static int _alertsBatchSize;
+        private static int _logRecordsBatchSize;
         private static SearchIndexClient _targetIndexClient;
 
         private static int _bufferedByNow = 0;
@@ -56,12 +47,12 @@ namespace SystemMonitoring.AlertRecoveryTool
 
         private static bool _forcedTriggerBatchRequired = true;
 
-        private static readonly BatchBlock<ActiveAlertAzureSearchModel> _batchBlock = new BatchBlock<ActiveAlertAzureSearchModel>(300);
+        private static readonly BatchBlock<LogRecordAzureSearchModel> _batchBlock = new BatchBlock<LogRecordAzureSearchModel>(300);
 
-        private static ActionBlock<ActiveAlertAzureSearchModel[]> _actionBlock;
+        private static ActionBlock<LogRecordAzureSearchModel[]> _actionBlock;
 
         private static CancellationTokenSource _cancellationSource;
-        private static Guid? _alertTenantId;
+        private static Guid? _logRecordTenantId;
 
         public static async Task Main(string[] args)
         {
@@ -140,41 +131,41 @@ namespace SystemMonitoring.AlertRecoveryTool
             var targetHours = (int)(_maxTimePeriod - _minTimePeriod).TotalHours + 25;
             _blobPathsSource = new List<string>(targetHours);
 
-            var alertType = ConfigurationManager.AppSettings["AlertsType"];
-            _alertType = string.IsNullOrWhiteSpace(alertType) ? ActiveAlertType.All : (ActiveAlertType)Enum.Parse(typeof(ActiveAlertType), alertType);
+            var logRecordType = ConfigurationManager.AppSettings[$"LogRecordsType"];
+            _logRecordType = string.IsNullOrWhiteSpace(logRecordType) ? LogRecordType.All : (LogRecordType)Enum.Parse(typeof(LogRecordType), logRecordType);
 
-            _alertName = ConfigurationManager.AppSettings["AlertName"];
+            _logRecordName = ConfigurationManager.AppSettings["logRecordName"];
 
-            var alertTenantId = ConfigurationManager.AppSettings["AlertTenantId"];
+            var logRecordTenantId = ConfigurationManager.AppSettings["LogRecordTenantId"];
             Guid temp;
-            if (Guid.TryParse(alertTenantId, out temp))
+            if (Guid.TryParse(logRecordTenantId, out temp))
             {
-                _alertTenantId = temp;
+                _logRecordTenantId = temp;
             }
 
 
             var blobType = ConfigurationManager.AppSettings["BlobsType"];
             _blobType = string.IsNullOrWhiteSpace(blobType) ? BlobType.None : (BlobType)Enum.Parse(typeof(BlobType), blobType);
 
-            var alertExpirationPolicy = ConfigurationManager.AppSettings["AlertExpirationPolicy"];
-            _alertExpirationPolicy = string.IsNullOrWhiteSpace(alertExpirationPolicy) ? AlertExpirationPolicy.None : (AlertExpirationPolicy)Enum.Parse(typeof(AlertExpirationPolicy), alertExpirationPolicy);
+            var logRecordExpirationPolicy = ConfigurationManager.AppSettings["LogRecordExpirationPolicy"];
+            _logRecordExpirationPolicy = string.IsNullOrWhiteSpace(logRecordExpirationPolicy) ? LogRecordExpirationPolicy.None : (LogRecordExpirationPolicy)Enum.Parse(typeof(LogRecordExpirationPolicy), logRecordExpirationPolicy);
 
-            switch (_alertExpirationPolicy)
+            switch (_logRecordExpirationPolicy)
             {
-                case AlertExpirationPolicy.DoNotPushExpired:
-                case AlertExpirationPolicy.PushExpiredWithExpirationOverride:
-                case AlertExpirationPolicy.PushAll:
+                case LogRecordExpirationPolicy.DoNotPushExpired:
+                case LogRecordExpirationPolicy.PushExpiredWithExpirationOverride:
+                case LogRecordExpirationPolicy.PushAll:
                     break;
-                case AlertExpirationPolicy.None:
-                default: throw new ArgumentException("AlertExpirationPolicy setting must be set");
+                case LogRecordExpirationPolicy.None:
+                default: throw new ArgumentException("LogRecordExpirationPolicy setting must be set");
             }
 
-            var alertExpirationShiftingInDays = ConfigurationManager.AppSettings["AlertExpirationShiftingInDays"];
-            var hasAlertExpirationShiftingInDays = long.TryParse(alertExpirationShiftingInDays, out _alertExpirationShiftingInDays);
+            var logRecordExpirationShiftingInDays = ConfigurationManager.AppSettings["LogRecordExpirationShiftingInDays"];
+            var hasLogRecordExpirationShiftingInDays = long.TryParse(logRecordExpirationShiftingInDays, out _logRecordExpirationShiftingInDays);
 
-            if (!hasAlertExpirationShiftingInDays)
+            if (!hasLogRecordExpirationShiftingInDays)
             {
-                throw new NullReferenceException("AlertExpirationShiftingInDays must be initialized before use (number)");
+                throw new NullReferenceException("LogRecordExpirationShiftingInDays must be initialized before use (number)");
             }
 
             _targetSearchServiceName = ConfigurationManager.AppSettings["TargetSearchServiceName"];
@@ -201,16 +192,16 @@ namespace SystemMonitoring.AlertRecoveryTool
                 throw new ArgumentException($"Invalid value of TimeOutInSeconds setting. Please, setup value more than zero.");
             }
 
-            var alertsBatchSize = ConfigurationManager.AppSettings["AlertsBatchSize"];
-            _alertsBatchSize = int.Parse(alertsBatchSize);
+            var logRecordsBatchSize = ConfigurationManager.AppSettings["LogRecordsBatchSize"];
+            _logRecordsBatchSize = int.Parse(logRecordsBatchSize);
 
-            if (_alertsBatchSize <= 0)
+            if (_logRecordsBatchSize <= 0)
             {
                 throw new ArgumentException($"Invalid value of TimeOutInSeconds setting. Please, setup value more than zero.");
             }
 
             Console.WriteLine("*** CONFIGURATION ***");
-            Console.WriteLine($"Path of Cloud Blob Storage for alerts: {_pathPrefix}");
+            Console.WriteLine($"Path of Cloud Blob Storage for logRecords: {_pathPrefix}");
             Console.WriteLine($"Period of time: from {_minTimePeriod} to {_maxTimePeriod}");
             Console.WriteLine($"Target service: {_targetSearchServiceName}");
             Console.WriteLine($"Target index: {_targetIndexName}");
@@ -235,10 +226,10 @@ namespace SystemMonitoring.AlertRecoveryTool
         {
             switch (statistic)
             {
-                case StatisticType.BufferedAlertsByNow:
+                case StatisticType.BufferedLogRecordsByNow:
                     Interlocked.Add(ref _bufferedByNow, increment);
                     break;
-                case StatisticType.PushedAlertsToAzureByNow:
+                case StatisticType.PushedLogRecordsToAzureByNow:
                     Interlocked.Add(ref _pushedToAzureByNow, increment);
                     break;
                 case StatisticType.BlobsDownloadedByNow:
@@ -250,7 +241,7 @@ namespace SystemMonitoring.AlertRecoveryTool
         private static void ShowStatistics()
         {
 
-            Console.WriteLine($"    Total Buffered: {_bufferedByNow}\r\n    Total Blobs Downloaded: {_blobsDownloadedByNow}\r\n    Total Alerts Pushed To Azure: {_pushedToAzureByNow}\r\n    Batch block: {_batchBlock.OutputCount}");
+            Console.WriteLine($"    Total Buffered: {_bufferedByNow}\r\n    Total Blobs Downloaded: {_blobsDownloadedByNow}\r\n    Total LogRecords Pushed To Azure: {_pushedToAzureByNow}\r\n    Batch block: {_batchBlock.OutputCount}");
         }
 
         private static async Task RecoverBlobs()
@@ -267,16 +258,16 @@ namespace SystemMonitoring.AlertRecoveryTool
                 }
             });
 
-            _actionBlock = new ActionBlock<ActiveAlertAzureSearchModel[]>(async alerts =>
+            _actionBlock = new ActionBlock<LogRecordAzureSearchModel[]>(async logRecords =>
             {
                 //set flag to a false due to Batch was propogated for saving in automatic mode so no manual propogating is required
                 try
                 {
                     _forcedTriggerBatchRequired = false;
-                    var results = await PushAlerts(alerts).ConfigureAwait(false);
+                    var results = await PushLogRecords(logRecords).ConfigureAwait(false);
                     if (results.Any(result => !result.Succeeded))
                         Console.WriteLine($"    Push to Azure failures {results.Count(result => !result.Succeeded)}");
-                    IncrementStatistic(StatisticType.PushedAlertsToAzureByNow, alerts.Length);
+                    IncrementStatistic(StatisticType.PushedLogRecordsToAzureByNow, logRecords.Length);
                     if (_bufferedByNow - _pushedToAzureByNow < 300)
                     {
                         if (!_cancellationSource.IsCancellationRequested)
@@ -369,24 +360,24 @@ namespace SystemMonitoring.AlertRecoveryTool
                 {
                     foreach (var blob in blobs)
                     {
-                        Console.WriteLine($"  {DateTime.Now.ToString("hh:mm:ss")} Downloading alerts from blob ...{blob.Name.Substring(40)}");
-                        var allAlertsFromBlob = await PullAlerts(blob).ConfigureAwait(false);
-                        Console.WriteLine($"  {DateTime.Now.ToString("hh:mm:ss")} Downloaded {allAlertsFromBlob.Count} alerts from blob");
+                        Console.WriteLine($"  {DateTime.Now.ToString("hh:mm:ss")} Downloading logRecords from blob ...{blob.Name.Substring(40)}");
+                        var allLogRecordsFromBlob = await PullLogRecords(blob).ConfigureAwait(false);
+                        Console.WriteLine($"  {DateTime.Now.ToString("hh:mm:ss")} Downloaded {allLogRecordsFromBlob.Count} logRecords from blob");
                         IncrementStatistic(StatisticType.BlobsDownloadedByNow, 1);
-                        Console.WriteLine($"  {DateTime.Now.ToString("hh:mm:ss")} Filtering and Buffering alerts");
-                        var bufferedAlertsCounter = 0;
-                        foreach (var blobAlert in allAlertsFromBlob)
+                        Console.WriteLine($"  {DateTime.Now.ToString("hh:mm:ss")} Filtering and Buffering logRecords");
+                        var bufferedlogRecordsCounter = 0;
+                        foreach (var blobLogRecord in allLogRecordsFromBlob)
                         {
-                            if (ShouldSend(blobAlert))
+                            if (ShouldSend(blobLogRecord))
                             {
-                                await _batchBlock.SendAsync(blobAlert).ConfigureAwait(false);
-                                bufferedAlertsCounter++;
+                                await _batchBlock.SendAsync(blobLogRecord).ConfigureAwait(false);
+                                bufferedlogRecordsCounter++;
                             }
                         }
-                        Console.WriteLine($"  {DateTime.Now.ToString("hh:mm:ss")} Buffered {bufferedAlertsCounter} alerts");
+                        Console.WriteLine($"  {DateTime.Now.ToString("hh:mm:ss")} Buffered {bufferedlogRecordsCounter} logRecords");
                         Console.WriteLine($"  {DateTime.Now.ToString("hh:mm:ss")} ActionBlock input count: {_actionBlock.InputCount}");
 
-                        IncrementStatistic(StatisticType.BufferedAlertsByNow, bufferedAlertsCounter);
+                        IncrementStatistic(StatisticType.BufferedLogRecordsByNow, bufferedlogRecordsCounter);
 
                         ShowStatistics();
                     }
@@ -401,7 +392,7 @@ namespace SystemMonitoring.AlertRecoveryTool
             ShowStatistics();
         }
 
-        private static async Task<List<ActiveAlertAzureSearchModel>> PullAlerts(CloudBlockBlob blob)
+        private static async Task<List<LogRecordAzureSearchModel>> PullLogRecords(CloudBlockBlob blob)
         {
             var maxRetryAttempts = 2;
             var pauseBetweenFailures = TimeSpan.FromSeconds(10);
@@ -434,8 +425,8 @@ namespace SystemMonitoring.AlertRecoveryTool
 
 
             //var json = blob.DownloadText();
-            var alerts = JsonConvert.DeserializeObject<List<ActiveAlertAzureSearchModel>>(jsonBlob);
-            return alerts;
+            var logRecords = JsonConvert.DeserializeObject<List<LogRecordAzureSearchModel>>(jsonBlob);
+            return logRecords;
         }
 
         private static void ManageRetryException(Exception exception, TimeSpan timeSpan, int retryCount, Context context)
@@ -468,28 +459,28 @@ namespace SystemMonitoring.AlertRecoveryTool
             return task;
         }
 
-        private static bool ShouldSend(ActiveAlertAzureSearchModel alert)
+        private static bool ShouldSend(LogRecordAzureSearchModel logRecord)
         {
             var shouldSend = true;
 
-            if (_alertType != ActiveAlertType.All)
+            if (_logRecordType != LogRecordType.All)
             {
-                shouldSend = alert.activeAlertTypeId == (int)_alertType;
+                shouldSend = logRecord.logRecordTypeId == (int)_logRecordType;
                 if (!shouldSend) return false;
             }
 
-            if (!string.IsNullOrEmpty(_alertName))
+            if (!string.IsNullOrEmpty(_logRecordName))
             {
-                shouldSend = alert.eventCode.Equals(_alertName, StringComparison.InvariantCultureIgnoreCase);
+                shouldSend = logRecord.eventCode.Equals(_logRecordName, StringComparison.InvariantCultureIgnoreCase);
                 if (!shouldSend) return false;
             }
 
 
-            if (_alertTenantId.HasValue)
+            if (_logRecordTenantId.HasValue)
             {
-                if (alert.tenantId.HasValue)
+                if (logRecord.tenantId.HasValue)
                 { 
-                    shouldSend = alert.tenantId.Value == _alertTenantId.Value;
+                    shouldSend = logRecord.tenantId.Value == _logRecordTenantId.Value;
                     if (!shouldSend) return false;
                 }
                 else
@@ -498,28 +489,28 @@ namespace SystemMonitoring.AlertRecoveryTool
                 };
             }
 
-            switch (_alertExpirationPolicy)
+            switch (_logRecordExpirationPolicy)
             {
-                case AlertExpirationPolicy.DoNotPushExpired:
-                    shouldSend = alert.expirationTicks > DateTimeOffset.UtcNow.Ticks;
+                case LogRecordExpirationPolicy.DoNotPushExpired:
+                    shouldSend = logRecord.expirationTicks > DateTimeOffset.UtcNow.Ticks;
                     if (!shouldSend) return false;
                     break;
-                case AlertExpirationPolicy.PushExpiredWithExpirationOverride:
-                    if (alert.expirationTicks < DateTimeOffset.UtcNow.Ticks) 
+                case LogRecordExpirationPolicy.PushExpiredWithExpirationOverride:
+                    if (logRecord.expirationTicks < DateTimeOffset.UtcNow.Ticks) 
                     {
-                        alert.expirationTicks = DateTimeOffset.UtcNow.Ticks + TimeSpan.TicksPerDay * _alertExpirationShiftingInDays;
+                        logRecord.expirationTicks = DateTimeOffset.UtcNow.Ticks + TimeSpan.TicksPerDay * _logRecordExpirationShiftingInDays;
                     }
                     break;
-                case AlertExpirationPolicy.PushAll:
-                case AlertExpirationPolicy.None:
-                default: throw new ArgumentException("AlertExpirationPolicy setting must be set");
+                case LogRecordExpirationPolicy.PushAll:
+                case LogRecordExpirationPolicy.None:
+                default: throw new ArgumentException("LogRecordExpirationPolicy setting must be set");
             }
             return shouldSend;
         }
 
-        private static async Task<IEnumerable<IndexingResult>> PushAlerts(ActiveAlertAzureSearchModel[] alerts)
+        private static async Task<IEnumerable<IndexingResult>> PushLogRecords(LogRecordAzureSearchModel[] logRecords)
         {
-            var response = await _targetIndexClient.GetSearchClient(_targetIndexName).UploadDocumentsAsync(alerts).ConfigureAwait(false);
+            var response = await _targetIndexClient.GetSearchClient(_targetIndexName).UploadDocumentsAsync(logRecords).ConfigureAwait(false);
             return response.Value.Results;
         }
     }
