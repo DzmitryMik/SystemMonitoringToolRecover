@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SystemMonitoring.AlertsRecoveryTool", "SystemMonitoringToolRecover\SystemMonitoring.AlertsRecoveryTool.csproj", "{43CE4395-BC9F-42FB-931B-091937BFCB66}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpdateAppSettings", "UpdateAppSettings\UpdateAppSettings.csproj", "{5B8D5548-40AF-4711-908C-8BB909BAB9D2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{43CE4395-BC9F-42FB-931B-091937BFCB66}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{43CE4395-BC9F-42FB-931B-091937BFCB66}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{43CE4395-BC9F-42FB-931B-091937BFCB66}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{43CE4395-BC9F-42FB-931B-091937BFCB66}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B8D5548-40AF-4711-908C-8BB909BAB9D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B8D5548-40AF-4711-908C-8BB909BAB9D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B8D5548-40AF-4711-908C-8BB909BAB9D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B8D5548-40AF-4711-908C-8BB909BAB9D2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
